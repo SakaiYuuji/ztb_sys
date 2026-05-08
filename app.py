@@ -103,6 +103,10 @@ with st.sidebar:
         novo_corte = st.number_input("Valor Corte Simples (R$)", value=30)
         novo_combo = st.number_input("Valor Combo (R$)", value=45)
         st.caption("No futuro, estes botões poderão alterar o preço do site automaticamente.")
+        # Limpar cache de conexões para forçar o Streamlit a ler a planilha do zero
+        if st.button("Limpar Cache de Conexão"):
+            st.cache_resource.clear()
+            st.success("Cache Limpo!")
     elif admin_pass:
         st.error("Senha Incorreta")
 
@@ -151,6 +155,7 @@ else:
     with col1:
         data = st.date_input("Escolha a data", min_value=pegar_hora_local().date(), format="DD/MM/YYYY")
 
+    # A FUNÇÃO AQUI VAI BUSCAR OS HORÁRIOS
     opcoes = gerar_horarios_disponiveis(data)
 
     with col2:
@@ -189,7 +194,7 @@ else:
                     registro_now
                 ])
                 
-                # Guarda dados em memória e recarrega a página
+                # Guarda dados em memória e recarrega a página IMEDIATAMENTE
                 st.session_state["agendamento_sucesso"] = {
                     "nome": nome,
                     "telefone": telefone_formatado,
