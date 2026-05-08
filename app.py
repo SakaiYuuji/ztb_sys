@@ -7,32 +7,21 @@ import json
 from google.oauth2.service_account import Credentials
 import gspread
 
-# 1. Carrega a string do segredo e converte de volta para dicionário Python
-creds_dict = json.loads(st.secrets["gcp_service_account"]["json_secret"])
+# Transforma a seção do Secrets diretamente em dicionário Python
+creds_dict = dict(st.secrets["gcp_service_account"])
 
-# 2. Define as permissões que o app terá no seu Google Drive / Sheets
+# Escopos necessários para acessar o Sheets e o Drive
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# 3. Cria o objeto de credenciais
+# Autenticação direta e limpa
 creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-
-# 4. Autoriza o cliente do gspread
 client = gspread.authorize(creds)
 
-# 5. Abre a planilha (lembre-se de compartilhar a planilha com o "client_email" do JSON!)
+# Abre a planilha
 planilha = client.open("Nome da Sua Planilha do Google").sheet1
-
-# Configuração da Página
-st.set_page_config(page_title="Barbearia Elite - Agendamento", layout="centered")
-
-# --- BANCO DE DADOS (Google Sheets) ---
-# Você deve configurar o gspread com suas credenciais
-def salvar_agendamento(nome, telefone, data, hora, servico):
-    # Lógica para salvar na planilha do Google
-    pass
 
 # --- INTERFACE ---
 st.title("✂️ Barbearia Elite")
