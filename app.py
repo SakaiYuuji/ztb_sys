@@ -27,7 +27,7 @@ try:
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     client = gspread.authorize(creds)
 
-    # ⚠️ IMPORTANTE: Altere para o nome exato da sua planilha do Google Sheets
+    # Nome exato da planilha que você acabou de criar no Google Drive
     NOME_PLANILHA = "Agendamentos Barbearia" 
     planilha = client.open(NOME_PLANILHA).sheet1
 
@@ -65,7 +65,6 @@ with st.form("agendamento_form"):
     
     col1, col2 = st.columns(2)
     with col1:
-        # datetime.today().date() evita conflitos de tipo com o st.date_input
         data = st.date_input("Escolha a data", min_value=datetime.today().date())
     with col2:
         hora = st.time_input("Escolha o horário", value=time(9, 0))
@@ -78,7 +77,7 @@ with st.form("agendamento_form"):
 # --- LÓGICA DE PROCESSAMENTO ---
 if submit:
     if nome and telefone:
-        # Formata a hora para HH:MM para salvar padronizado
+        # Formata a hora para HH:MM e data para DD/MM/AAAA para salvar padronizado
         hora_formatada = hora.strftime("%H:%M")
         data_formatada = data.strftime("%d/%m/%Y")
         
