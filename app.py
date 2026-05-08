@@ -214,8 +214,8 @@ if aba_selecionada == "Agendar Horário":
             
         with tab2:
             st.write(f"Valor a pagar: **R$ {dados['preco']}**")
-            chave_pix = "suachave@email.com"
-            payload_pix = f"00020101021126580014br.gov.bcb.pix0114{chave_pix}520400005303986540{dados['preco']}5802BR5910Barbearia6008Recife62070503***6304"
+            chave_pix = "07530294482"
+            payload_pix = f"00020126330014BR.GOV.BCB.PIX0111075302944825204000053039865802BR5924Carlos Augusto de Araujo6009SAO PAULO621405109Y8ERNGqtr63044A75"
             
             qr = segno.make(payload_pix)
             buffer_qr = io.BytesIO()
