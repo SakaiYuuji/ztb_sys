@@ -162,9 +162,11 @@ else:
     st.subheader("Agende seu horário")
     
     nome = st.text_input("Seu Nome Completo")
-    if nome:
-    nome = re.sub(r'^[=+@-]', '', nome)
     
+    # Vacina contra injeção de fórmulas no Google Sheets
+    if nome:
+        nome = re.sub(r'^[=+@-]', '', nome)
+        
     telefone_input = st.text_input("WhatsApp (digite apenas números)", max_chars=11)
 
     col1, col2 = st.columns(2)
