@@ -9,6 +9,10 @@ import re
 
 st.set_page_config(page_title="Barbearia Elite - Agendamento", layout="centered")
 
+# --- INICIALIZA A TRAVA DE SESSÃO LOCAL ---
+if "horarios_bloqueados_sessao" not in st.session_state:
+    st.session_state["horarios_bloqueados_sessao"] = []
+
 # --- CONEXÃO SEGURA COM O GOOGLE SHEETS ---
 @st.cache_resource
 def conectar_banco():
@@ -80,7 +84,15 @@ def gerar_horarios_disponiveis(data_selecionada):
         atual += timedelta(minutes=30)
     
     data_str = data_selecionada.strftime("%d/%m/%Y")
-    ocupados = obter_horarios_ocupados(data_str)
+    
+    # Busca da Planilha
+    ocupados_planilha = obter_horarios_ocupados(data_str)
+    
+    # Busca da Trava da Sessão Atual
+    ocupados_sessao = [h for d, h in st.session_state["horarios_bloqueados_sessao"] if d == data_str]
+    
+    # Combina tudo que tá ocupado
+    todos_ocupados = ocupados_planilha + ocupados_sessao
     
     agora = pegar_hora_local()
     # Se for o dia de hoje, tira os horários do passado
@@ -88,8 +100,8 @@ def gerar_horarios_disponiveis(data_selecionada):
         hora_atual = agora.strftime("%H:%M")
         grade = [h for h in grade if h > hora_atual]
     
-    # Retorna apenas o que não estiver na lista de ocupados
-    return [h for h in grade if h not in ocupados]
+    # Retorna apenas o que não estiver na lista combinada de ocupados
+    return [h for h in grade if h not in todos_ocupados]
 
 
 # --- ÁREA ADMINISTRATIVA (MENU LATERAL) ---
@@ -106,6 +118,7 @@ with st.sidebar:
         # Limpar cache de conexões para forçar o Streamlit a ler a planilha do zero
         if st.button("Limpar Cache de Conexão"):
             st.cache_resource.clear()
+            st.session_state["horarios_bloqueados_sessao"] = []
             st.success("Cache Limpo!")
     elif admin_pass:
         st.error("Senha Incorreta")
@@ -155,7 +168,7 @@ else:
     with col1:
         data = st.date_input("Escolha a data", min_value=pegar_hora_local().date(), format="DD/MM/YYYY")
 
-    # A FUNÇÃO AQUI VAI BUSCAR OS HORÁRIOS
+    # A FUNÇÃO AQUI VAI BUSCAR OS HORÁRIOS JÁ COM A TRAVA
     opcoes = gerar_horarios_disponiveis(data)
 
     with col2:
@@ -183,6 +196,9 @@ else:
             if hora_escolhida in obter_horarios_ocupados(data_formatada):
                 st.error("Putz! Alguém acabou de reservar esse horário. Escolha outro.")
             else:
+                # TRAVA IMEDIATA NO STREAMLIT (Antes mesmo de ir pro Google)
+                st.session_state["horarios_bloqueados_sessao"].append((data_formatada, hora_escolhida))
+
                 registro_now = pegar_hora_local().strftime("%d/%m/%Y %H:%M:%S")
                 # Salva com o apóstrofo para garantir texto puro na planilha
                 planilha.append_row([
