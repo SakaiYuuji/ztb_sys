@@ -28,8 +28,8 @@ try:
     client = gspread.authorize(creds)
 
     # Nome exato da planilha que você acabou de criar no Google Drive
-    NOME_PLANILHA = "Agendamentos Barbearia" 
-    planilha = client.open(NOME_PLANILHA).sheet1
+    NOME_PLANILHA = "13UgvP4l2EhgBNON2YGTALe8cwDXO5zCwgQzkynnwkk8" 
+    planilha = client.open_by_key(NOME_PLANILHA).sheet1
 
     # Cria os cabeçalhos caso a planilha esteja completamente em branco
     if not planilha.get_all_values():
