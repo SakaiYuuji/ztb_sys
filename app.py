@@ -58,63 +58,50 @@ def formatar_telefone(numero_cru):
     return numero_cru
 
 def obter_horarios_ocupados(data_str):
-    """Busca na planilha os horários já agendados para uma data específica"""
+    """Busca na planilha os horários já agendados e limpa a formatação"""
     try:
         registros = planilha.get_all_records()
         ocupados = []
         for reg in registros:
-            # Pega a data e a hora da linha atual e remove espaços em branco
-            reg_data = str(reg.get("Data", "")).strip()
+            # Remove o apóstrofo e espaços extras da data e hora
+            reg_data = str(reg.get("Data", "")).replace("'", "").strip()
             reg_hora = str(reg.get("Hora", "")).strip()
             
-            # O Sheets às vezes devolve '08:30:00'. Pegamos só os 5 primeiros caracteres ('08:30')
+            # Padroniza para HH:MM (pega apenas os 5 primeiros caracteres)
             if len(reg_hora) >= 5:
                 reg_hora = reg_hora[:5]
                 
-            # Se a data também vier com apóstrofo invisível, nós o removemos para comparar
-            reg_data = reg_data.replace("'", "")
-                
             if reg_data == data_str:
                 ocupados.append(reg_hora)
-                
         return ocupados
-    except Exception:
-        # Se a planilha estiver vazia, retorna lista vazia
+    except:
         return []
 
 def gerar_horarios_disponiveis(data_selecionada):
-    """Gera grade de 30 em 30 min, filtrando o passado e os horários já agendados"""
-    horarios = []
+    """Gera a grade de 30min e remove o que já está ocupado"""
+    todos_horarios = []
     inicio = datetime.strptime("08:00", "%H:%M")
     fim = datetime.strptime("18:30", "%H:%M")
     
     atual = inicio
     while atual <= fim:
-        horarios.append(atual.strftime("%H:%M"))
+        todos_horarios.append(atual.strftime("%H:%M"))
         atual += timedelta(minutes=30)
-        
-    hora_local_agora = pegar_hora_local()
     
-    # Se for hoje, remove os horários que já passaram
-    if data_selecionada == hora_local_agora.date():
-        hora_agora_str = hora_local_agora.strftime("%H:%M")
-        horarios = [h for h in horarios if h > hora_agora_str]
-        
-    # Remove da lista o que já está na planilha
+    # Busca o que já existe no Sheets para o dia selecionado
     data_str = data_selecionada.strftime("%d/%m/%Y")
     ocupados = obter_horarios_ocupados(data_str)
-    disponiveis = [h for h in horarios if h not in ocupados]
+    
+    # A MÁGICA: Só mantém na lista o que NÃO está nos ocupados
+    disponiveis = [h for h in todos_horarios if h not in ocupados]
     
     return disponiveis
 
 def salvar_agendamento(nome, telefone, data, hora, servico):
+    """Salva com o apóstrofo invisível para blindar a formatação"""
     registro_data = pegar_hora_local().strftime("%d/%m/%Y %H:%M:%S")
-    
-    # O apóstrofo (') força o Google Sheets a salvar exatamente o que mandamos, como TEXTO
-    data_texto = f"'{data}"
-    hora_texto = f"'{hora}"
-    
-    planilha.append_row([nome, telefone, data_texto, hora_texto, servico, registro_data])
+    # O f"'{var}" garante que o Sheets salve como TEXTO
+    planilha.append_row([nome, telefone, f"'{data}", f"'{hora}", servico, registro_data])
 
 
 # --- ÁREA ADMINISTRATIVA (ESCONDIDA NO MENU LATERAL) ---
