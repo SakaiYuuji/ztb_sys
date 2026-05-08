@@ -109,7 +109,7 @@ with st.sidebar:
     st.header("⚙️ Acesso Admin")
     admin_pass = st.text_input("Senha de Gerenciamento", type="password")
     
-    if admin_pass == "12345":
+    if admin_pass == st.secrets["senha_admin"]:
         st.success("Acesso Liberado!")
         st.write("Configurações Rápidas:")
         novo_corte = st.number_input("Valor Corte Simples (R$)", value=30)
