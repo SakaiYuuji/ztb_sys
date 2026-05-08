@@ -10,25 +10,31 @@ import re
 st.set_page_config(page_title="Barbearia Elite - Agendamento", layout="centered")
 
 # --- CONEXÃO SEGURA COM O GOOGLE SHEETS ---
-try:
-    creds_dict = dict(st.secrets["gcp_service_account"])
-    raw_key = creds_dict["private_key"]
-    cleaned_lines = [line.strip() for line in raw_key.replace("\\n", "\n").split("\n") if line.strip()]
-    creds_dict["private_key"] = "\n".join(cleaned_lines)
+@st.cache_resource
+def conectar_banco():
+    try:
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        raw_key = creds_dict["private_key"]
+        cleaned_lines = [line.strip() for line in raw_key.replace("\\n", "\n").split("\n") if line.strip()]
+        creds_dict["private_key"] = "\n".join(cleaned_lines)
 
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    client = gspread.authorize(creds)
-    
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        client = gspread.authorize(creds)
+        
     # Nome exato da planilha que você acabou de criar no Google Drive
     NOME_PLANILHA = "13UgvP4l2EhgBNON2YGTALe8cwDXO5zCwgQzkynnwkk8" 
     planilha = client.open_by_key(NOME_PLANILHA).sheet1
 except Exception as e:
-    st.error(f"⚠️ Erro ao conectar com o banco de dados: {e}")
-    st.stop() # Para a execução aqui para não dar 'NameError' lá embaixo
+        return None
+
+planilha = conectar_banco()
+if planilha is None:
+    st.error("⚠️ Erro ao conectar com o banco de dados. Verifique a API do Drive e o Secrets.")
+    st.stop()
 
 
 # --- FUNÇÕES DE LÓGICA E BLINDAGEM ---
@@ -44,20 +50,26 @@ def formatar_telefone(numero_cru):
     return numero_cru
 
 def obter_horarios_ocupados(data_str):
+    """MÉTODO BLINDADO: Lê por posição da coluna (Índice 2 e 3) e não pelo nome do cabeçalho"""
     try:
-        registros = planilha.get_all_records()
-        ocupados = []
-        for linha in registros:
-            p_data = str(linha.get("Data", "")).replace("'", "").strip()
-            p_hora = str(linha.get("Hora", "")).replace("'", "").strip()
+        valores = planilha.get_all_values()
+        if len(valores) <= 1: # Se só tiver o cabeçalho
+            return []
             
-            if len(p_hora) >= 5:
-                p_hora = p_hora[:5]
+        ocupados = []
+        for linha in valores[1:]: # Pula a linha 0 (cabeçalhos)
+            if len(linha) > 3:
+                # Índice 2 = Coluna Data, Índice 3 = Coluna Hora
+                p_data = str(linha[2]).replace("'", "").strip()
+                p_hora = str(linha[3]).replace("'", "").strip()
                 
-            if p_data == data_str:
-                ocupados.append(p_hora)
+                if len(p_hora) >= 5:
+                    p_hora = p_hora[:5]
+                    
+                if p_data == data_str:
+                    ocupados.append(p_hora)
         return ocupados
-    except:
+    except Exception as e:
         return []
 
 def gerar_horarios_disponiveis(data_selecionada):
@@ -73,17 +85,33 @@ def gerar_horarios_disponiveis(data_selecionada):
     ocupados = obter_horarios_ocupados(data_str)
     
     agora = pegar_hora_local()
+    # Se for o dia de hoje, tira os horários do passado
     if data_selecionada == agora.date():
         hora_atual = agora.strftime("%H:%M")
         grade = [h for h in grade if h > hora_atual]
     
+    # Retorna apenas o que não estiver na lista de ocupados
     return [h for h in grade if h not in ocupados]
 
 
-# --- INTERFACE DO APLICATIVO ---
+# --- ÁREA ADMINISTRATIVA (MENU LATERAL) ---
+with st.sidebar:
+    st.header("⚙️ Acesso Admin")
+    admin_pass = st.text_input("Senha de Gerenciamento", type="password")
+    
+    if admin_pass == "12345":
+        st.success("Acesso Liberado!")
+        st.write("Configurações Rápidas:")
+        novo_corte = st.number_input("Valor Corte Simples (R$)", value=30)
+        novo_combo = st.number_input("Valor Combo (R$)", value=45)
+        st.caption("No futuro, estes botões poderão alterar o preço do site automaticamente.")
+    elif admin_pass:
+        st.error("Senha Incorreta")
+
+
+# --- INTERFACE DO CLIENTE ---
 st.title("✂️ Barbearia Elite")
 
-# Lógica de Telas: Se o cliente acabou de agendar, mostramos o PIX. Se não, mostramos o formulário.
 if "agendamento_sucesso" in st.session_state:
     # --- TELA DE SUCESSO & PIX ---
     dados = st.session_state["agendamento_sucesso"]
@@ -96,11 +124,10 @@ if "agendamento_sucesso" in st.session_state:
     tab1, tab2 = st.tabs(["Pagar no Local", "Pagar via PIX"])
     
     with tab1:
-        st.write("Tudo certo! Pode acertar na hora do atendimento.")
+        st.write("Tudo certo! Te aguardamos no horário marcado.")
         
     with tab2:
         st.write(f"Valor a pagar: **R$ {dados['preco']}**")
-        
         chave_pix = "suachave@email.com"
         payload_pix = f"00020101021126580014br.gov.bcb.pix0114{chave_pix}520400005303986540{dados['preco']}5802BR5910Barbearia6008Recife62070503***6304"
         
@@ -111,7 +138,7 @@ if "agendamento_sucesso" in st.session_state:
         st.image(buffer_qr.getvalue(), caption="Escaneie o QR Code no app do seu banco")
         st.code(payload_pix, language="text")
         
-    if st.button("Fazer um Novo Agendamento"):
+    if st.button("Fazer um Novo Agendamento", use_container_width=True):
         del st.session_state["agendamento_sucesso"]
         st.rerun()
 
@@ -120,7 +147,7 @@ else:
     st.subheader("Agende seu horário")
     
     nome = st.text_input("Seu Nome Completo")
-    telefone_input = st.text_input("WhatsApp (digite apenas números, ex: 81996962824)")
+    telefone_input = st.text_input("WhatsApp (digite apenas números)", max_chars=11)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -149,10 +176,12 @@ else:
             telefone_formatado = formatar_telefone(telefone_input)
             data_formatada = data.strftime("%d/%m/%Y")
             
+            # Verificação final antes de salvar (Garante que dois não salvem juntos)
             if hora_escolhida in obter_horarios_ocupados(data_formatada):
                 st.error("Putz! Alguém acabou de reservar esse horário. Escolha outro.")
             else:
                 registro_now = pegar_hora_local().strftime("%d/%m/%Y %H:%M:%S")
+                # Salva com o apóstrofo para garantir texto puro na planilha
                 planilha.append_row([
                     nome, 
                     telefone_formatado, 
@@ -162,7 +191,7 @@ else:
                     registro_now
                 ])
                 
-                # Salva os dados na memória temporária e recarrega a página
+                # Guarda dados em memória e recarrega a página
                 st.session_state["agendamento_sucesso"] = {
                     "nome": nome,
                     "telefone": telefone_formatado,
