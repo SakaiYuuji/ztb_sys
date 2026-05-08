@@ -59,8 +59,28 @@ def formatar_telefone(numero_cru):
 
 def obter_horarios_ocupados(data_str):
     """Busca na planilha os horários já agendados para uma data específica"""
-    registros = planilha.get_all_records()
-    return [str(reg["Hora"]) for reg in registros if str(reg["Data"]) == data_str]
+    try:
+        registros = planilha.get_all_records()
+        ocupados = []
+        for reg in registros:
+            # Pega a data e a hora da linha atual e remove espaços em branco
+            reg_data = str(reg.get("Data", "")).strip()
+            reg_hora = str(reg.get("Hora", "")).strip()
+            
+            # O Sheets às vezes devolve '08:30:00'. Pegamos só os 5 primeiros caracteres ('08:30')
+            if len(reg_hora) >= 5:
+                reg_hora = reg_hora[:5]
+                
+            # Se a data também vier com apóstrofo invisível, nós o removemos para comparar
+            reg_data = reg_data.replace("'", "")
+                
+            if reg_data == data_str:
+                ocupados.append(reg_hora)
+                
+        return ocupados
+    except Exception:
+        # Se a planilha estiver vazia, retorna lista vazia
+        return []
 
 def gerar_horarios_disponiveis(data_selecionada):
     """Gera grade de 30 em 30 min, filtrando o passado e os horários já agendados"""
@@ -89,7 +109,12 @@ def gerar_horarios_disponiveis(data_selecionada):
 
 def salvar_agendamento(nome, telefone, data, hora, servico):
     registro_data = pegar_hora_local().strftime("%d/%m/%Y %H:%M:%S")
-    planilha.append_row([nome, telefone, data, hora, servico, registro_data])
+    
+    # O apóstrofo (') força o Google Sheets a salvar exatamente o que mandamos, como TEXTO
+    data_texto = f"'{data}"
+    hora_texto = f"'{hora}"
+    
+    planilha.append_row([nome, telefone, data_texto, hora_texto, servico, registro_data])
 
 
 # --- ÁREA ADMINISTRATIVA (ESCONDIDA NO MENU LATERAL) ---
