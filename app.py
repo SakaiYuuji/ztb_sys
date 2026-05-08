@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 import gspread
 import re
 
-st.set_page_config(page_title="Barbearia Elite - Sistema", layout="centered")
+st.set_page_config(page_title="Barbearia Elite - Agendamento", layout="centered")
 
 # --- INICIALIZA A TRAVA DE SESSÃO LOCAL ---
 if "horarios_bloqueados_sessao" not in st.session_state:
@@ -104,19 +104,35 @@ def gerar_horarios_disponiveis(data_selecionada):
     return [h for h in grade if h not in todos_ocupados]
 
 def buscar_todos_dados_para_painel():
-    """Busca os dados e os converte em DataFrame para o Painel Admin"""
+    """MÉTODO BLINDADO: Lê os dados do Sheets por índices de coluna para evitar erros de cabeçalho"""
     try:
         valores = planilha.get_all_values()
-        if len(valores) > 1:
-            df = pd.DataFrame(valores[1:], columns=valores[0])
-            # Limpa apóstrofos que usamos para blindar o Google Sheets
-            if 'Data' in df.columns:
-                df['Data'] = df['Data'].str.replace("'", "")
-            if 'Hora' in df.columns:
-                df['Hora'] = df['Hora'].str.replace("'", "")
-            return df
-        return pd.DataFrame()
-    except:
+        if len(valores) <= 1:
+            return pd.DataFrame()
+            
+        dados_limpos = []
+        for linha in valores[1:]:
+            # Garante que a linha possui pelo menos as 5 colunas básicas preenchidas
+            if len(linha) >= 5:
+                nome_val = str(linha[0]).strip()
+                tel_val = str(linha[1]).strip()
+                data_val = str(linha[2]).replace("'", "").strip()
+                hora_val = str(linha[3]).replace("'", "").strip()
+                serv_val = str(linha[4]).strip()
+                
+                # Força padronização de hora para HH:MM (evita segundos vindos do Sheets)
+                if len(hora_val) >= 5:
+                    hora_val = hora_val[:5]
+                    
+                dados_limpos.append({
+                    "Nome": nome_val,
+                    "Telefone": tel_val,
+                    "Data": data_val,
+                    "Hora": hora_val,
+                    "Serviço": serv_val
+                })
+        return pd.DataFrame(dados_limpos)
+    except Exception as e:
         return pd.DataFrame()
 
 
