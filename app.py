@@ -25,10 +25,8 @@ def conectar_banco():
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
         
-    # Nome exato da planilha que você acabou de criar no Google Drive
-    NOME_PLANILHA = "13UgvP4l2EhgBNON2YGTALe8cwDXO5zCwgQzkynnwkk8" 
-    planilha = client.open_by_key(NOME_PLANILHA).sheet1
-except Exception as e:
+        return client.open("Agendamentos Barbearia").sheet1
+    except Exception as e:
         return None
 
 planilha = conectar_banco()
