@@ -3,6 +3,27 @@ import pandas as pd
 from datetime import datetime, time
 import segno # Para gerar QR Code
 from gspread_pandas import Spread
+import json
+from google.oauth2.service_account import Credentials
+import gspread
+
+# 1. Carrega a string do segredo e converte de volta para dicionário Python
+creds_dict = json.loads(st.secrets["gcp_service_account"]["json_secret"])
+
+# 2. Define as permissões que o app terá no seu Google Drive / Sheets
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# 3. Cria o objeto de credenciais
+creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+
+# 4. Autoriza o cliente do gspread
+client = gspread.authorize(creds)
+
+# 5. Abre a planilha (lembre-se de compartilhar a planilha com o "client_email" do JSON!)
+planilha = client.open("Nome da Sua Planilha do Google").sheet1
 
 # Configuração da Página
 st.set_page_config(page_title="Barbearia Elite - Agendamento", layout="centered")
